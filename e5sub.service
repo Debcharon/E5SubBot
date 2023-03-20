@@ -1,0 +1,14 @@
+[Unit]
+Description=E5SubBot Service
+After=network.target
+
+[Service]
+User=nobody
+Group=nogroup
+WorkingDirectory=/usr/local/etc/E5SubBot
+ExecStart=/usr/local/bin/E5SubBot
+Restart=on-failure
+
+[Install]
+
+WantedBy=multi-user.target
