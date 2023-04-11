@@ -10,15 +10,18 @@ import (
 
 const (
 	LogBasePath    string = "./log/"
-	WelcomeContent string = "欢迎使用E5SubBot!"
+	WelcomeContent string = "Welcome to use E5SubBot!"
 	HelpContent    string = `
-	命令：
-	/my 查看已绑定账户信息
-	/bind  绑定新账户
-	/unbind 解绑账户
-	/export 导出账户信息(JSON)
-	/help 帮助
-	源码及使用方法：https://github.com/iyear/E5SubBot
+	Command:
+	/my Check your account info
+	/bind Bind new account
+	/unbind Unbind account
+	/export Export account info (JSON)
+	/help Help
+Open source:
+https://github.com/iyear/E5SubBot
+Docs:
+https://drive.microcharon.top/Cloudflare/E5Sub_Doc.pdf
 `
 )
 

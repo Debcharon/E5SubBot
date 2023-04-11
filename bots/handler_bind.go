@@ -16,12 +16,12 @@ import (
 
 func bBind(m *tb.Message) {
 	bot.Send(m.Chat,
-		fmt.Sprintf("👉 应用注册： [点击直达](%s)", microsoft.GetRegURL()),
+		fmt.Sprintf("Register application [Directly](%s)", microsoft.GetRegURL()),
 		tb.ModeMarkdown,
 	)
 
 	bot.Send(m.Chat,
-		"⚠ 请回复 `client_id(空格)client_secret`",
+		"Please reply with your `client_id` + `client_secret`",
 		&tb.SendOptions{ParseMode: tb.ModeMarkdown,
 			ReplyMarkup: &tb.ReplyMarkup{ForceReply: true}},
 	)
@@ -32,23 +32,23 @@ func bBind(m *tb.Message) {
 
 func bBind1(m *tb.Message) {
 	if !m.IsReply() {
-		bot.Send(m.Chat, "⚠ 请通过回复方式绑定")
+		bot.Send(m.Chat, "WARN: Please reply to message to bind")
 		return
 	}
 	tmp := strings.Split(m.Text, " ")
 	if len(tmp) != 2 {
-		bot.Send(m.Chat, "⚠ 错误的格式")
+		bot.Send(m.Chat, "WARN: Wrong format")
 		return
 	}
 	id := tmp[0]
 	secret := tmp[1]
 	bot.Send(m.Chat,
-		fmt.Sprintf("👉 授权账户： [点击直达](%s)", microsoft.GetAuthURL(id)),
+		fmt.Sprintf("Authorized Account [Directly](%s)", microsoft.GetAuthURL(id)),
 		tb.ModeMarkdown,
 	)
 
 	bot.Send(m.Chat,
-		"⚠ 请回复`http://localhost/……(空格)别名`(用于管理)",
+	"WARN: Please reply http://localhost/... + alias",
 		&tb.SendOptions{ParseMode: tb.ModeMarkdown,
 			ReplyMarkup: &tb.ReplyMarkup{ForceReply: true},
 		},
@@ -60,18 +60,18 @@ func bBind1(m *tb.Message) {
 
 func bBind2(m *tb.Message) {
 	if !m.IsReply() {
-		bot.Send(m.Chat, "⚠ 请通过回复方式绑定")
+		bot.Send(m.Chat, "WARN: Please reply to message to bind")
 		return
 	}
 	if len(srv_client.GetClients(m.Chat.ID)) == config.BindMaxNum {
-		bot.Send(m.Chat, "⚠ 已经达到最大可绑定数")
+		bot.Send(m.Chat, "WARN: You have reached maximum binding number")
 		return
 	}
-	bot.Send(m.Chat, "正在绑定中……")
+	bot.Send(m.Chat, "Binding now...")
 
 	tmp := strings.Split(m.Text, " ")
 	if len(tmp) != 2 {
-		bot.Send(m.Chat, "😥 错误的格式")
+		bot.Send(m.Chat, "Wrong format")
 	}
 	code := util.GetURLValue(tmp[0], "code")
 	alias := tmp[1]
@@ -81,14 +81,14 @@ func bBind2(m *tb.Message) {
 
 	refresh, err := microsoft.GetTokenWithCode(id, secret, code)
 	if err != nil {
-		bot.Send(m.Chat, fmt.Sprintf("无法获取RefreshToken ERROR:%s", err))
+		bot.Send(m.Chat, fmt.Sprintf("Cannot get RefreshToken ERROR:%s", err))
 		return
 	}
-	bot.Send(m.Chat, "🎉 Token获取成功!")
+	bot.Send(m.Chat, "Successfully to get Token")
 
 	refresh, info, err := microsoft.GetUserInfo(id, secret, refresh)
 	if err != nil {
-		bot.Send(m.Chat, fmt.Sprintf("无法获取用户信息 ERROR:%s", err))
+		bot.Send(m.Chat, fmt.Sprintf("Cannot get user info ERROR:%s", err))
 		return
 	}
 	c := &model.Client{
@@ -102,12 +102,12 @@ func bBind2(m *tb.Message) {
 	}
 
 	if srv_client.IsExist(c.TgId, c.ClientId) {
-		bot.Send(m.Chat, "⚠ 该应用已经绑定过了，无需重复绑定")
+		bot.Send(m.Chat, "WARN: The application has already been bound, no need to bind again")
 		return
 	}
 
 	bot.Send(m.Chat,
-		fmt.Sprintf("ms_id：%s\nuserPrincipalName：%s\ndisplayName：%s",
+	fmt.Sprintf("ms_id: %s\nuserPrincipalName: %s\ndisplayName: %s",
 			c.MsId,
 			gjson.Get(info, "userPrincipalName").String(),
 			gjson.Get(info, "displayName").String(),
@@ -115,11 +115,11 @@ func bBind2(m *tb.Message) {
 	)
 
 	if err = srv_client.Add(c); err != nil {
-		bot.Send(m.Chat, "😥 用户写入数据库失败")
+		bot.Send(m.Chat, "ERROR: User data fail to write in database")
 		return
 	}
 
-	bot.Send(m.Chat, "✨ 绑定成功!")
+	bot.Send(m.Chat, "Bind account successfully!")
 	delete(UserStatus, m.Chat.ID)
 	delete(UserClientId, m.Chat.ID)
 	delete(UserClientSecret, m.Chat.ID)
@@ -140,7 +140,7 @@ func bUnBind(m *tb.Message) {
 	}
 
 	bot.Send(m.Chat,
-		fmt.Sprintf("⚠ 选择一个账户将其解绑\n\n当前绑定数: %d/%d", len(srv_client.GetClients(m.Chat.ID)), config.BindMaxNum),
+	fmt.Sprintf("Select an account to unbind\n\nCurrent number of bindings: %d/%d", len(srv_client.GetClients(m.Chat.ID)), config.BindMaxNum),
 		&tb.ReplyMarkup{InlineKeyboard: inlineKeys},
 	)
 }
@@ -151,9 +151,9 @@ func bUnBindInlineBtn(c *tb.Callback) {
 			"error", err,
 			"id", c.Data,
 		)
-		bot.Send(c.Message.Chat, "⚠ 解绑失败!")
+		bot.Send(c.Message.Chat, "ERROR: Fail to unbind account")
 		return
 	}
-	bot.Send(c.Message.Chat, "✨ 解绑成功!")
+	bot.Send(c.Message.Chat, "Unbind account successfully!")
 	bot.Respond(c)
 }

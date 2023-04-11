@@ -83,7 +83,7 @@ func adminSummary(errClients []*ErrClient, timeSpending float64) {
 	}
 	for _, admin := range config.Admins {
 		a := admin
-		msgSender.SendMessageByID(a, fmt.Sprintf("任务反馈(管理员)\n完成时间: %s\n用时: %.2fs\n结果: %d/%d\n错误账户: \n%s\n清退账户: \n%s",
+		msgSender.SendMessageByID(a, fmt.Sprintf("Task feedback (administrator)\nComplete time: %s\nTime cost: %.2fs\nResult: %d/%d\nWrong: \n%s\nCleared: \n%s",
 			time.Now().Format("2006-01-02 15:04:05"),
 			timeSpending,
 			Count-ErrCount, Count,
@@ -112,7 +112,7 @@ func usersSummary(errClients []*ErrClient) {
 
 			unbindUsers = append(unbindUsers, errClient.TgId)
 
-			msgSender.SendMessageByID(errClient.TgId, fmt.Sprintf("您的账户因达到错误上限而被自动解绑\n后会有期!\n\n别名: %s\nclient_id: %s\nclient_secret: %s",
+			msgSender.SendMessageByID(errClient.TgId, fmt.Sprintf("Your account was automatically unbind due to reaching maximum error times\n\nAlias: %s\nclient_id: %s\nclient_secret: %s",
 				errClient.Alias,
 				errClient.ClientId,
 				errClient.ClientSecret,
@@ -126,7 +126,7 @@ func usersSummary(errClients []*ErrClient) {
 		signOK := len(srv_client.GetClients(errClient.TgId)) - signErr[errClient.TgId]
 
 		msgSender.SendMessageByID(errClient.TgId,
-			fmt.Sprintf("任务反馈\n时间: %s\n结果:%d/%d",
+			fmt.Sprintf("Task feedback\nTime: %s\nResult: %d/%d",
 				time.Now().Format("2006-01-02 15:04:05"),
 				signOK,
 				signErr[errClient.TgId]+signOK,
@@ -140,11 +140,11 @@ func opErrorSign(errClient *ErrClient) {
 	errorTimes[errClient.ID]++
 	signErr[errClient.TgId]++
 
-	UnBindBtn := tb.InlineButton{Unique: "un" + errClient.MsId, Text: "点击解绑", Data: strconv.Itoa(errClient.ID)}
+	UnBindBtn := tb.InlineButton{Unique: "un" + errClient.MsId, Text: "Click to unbind", Data: strconv.Itoa(errClient.ID)}
 	bot.Handle(&UnBindBtn, bUnBindInlineBtn)
 
 	msgSender.SendMessageByID(errClient.TgId,
-		fmt.Sprintf("您的帐户 %s 在执行时出现了错误\n您可以选择解绑该用户\n错误: %s",
+		fmt.Sprintf("An error occurred to your account %s during execution\nYou can choose to unbind this account\nError: %s",
 			errClient.Alias, errClient.Err),
 		&tb.ReplyMarkup{InlineKeyboard: [][]tb.InlineButton{{UnBindBtn}}},
 	)
