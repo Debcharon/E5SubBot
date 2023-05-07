@@ -22,8 +22,6 @@ func GetAuthURL(clientID string) string {
 }
 
 func GetRegURL() string {
-	ru := "https://developer.microsoft.com/en-us/graph/quick-start?appID=_appId_&appName=_appName_&redirectUrl=http://localhost:8000&platform=option-windowsuniversal"
-	deeplink := fmt.Sprintf("/quickstart/graphIO?publicClientSupport=false&appName=e5sub&redirectUrl=%s&allowImplicitFlow=false&ru=%s", redirect, url.QueryEscape(ru))
-	appUrl := fmt.Sprintf("https://apps.dev.microsoft.com/?deepLink=%s", url.QueryEscape(deeplink))
+	appUrl := fmt.Sprintf("https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade")
 	return appUrl
 }
