@@ -21,7 +21,7 @@ const (
 Open source:
 https://github.com/iyear/E5SubBot
 Docs:
-https://drive.microcharon.top/Cloudflare/E5Sub_Doc.pdf
+https://drive.microcharon.com/Cloudflare/E5Sub_Doc.pdf
 `
 )
 
