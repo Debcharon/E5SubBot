@@ -3,8 +3,8 @@ Description=E5SubBot Service
 After=network.target
 
 [Service]
-User=nobody
-Group=nogroup
+User=e5subbot
+Group=e5subbot
 WorkingDirectory=/usr/local/etc/E5SubBot
 ExecStart=/usr/local/bin/E5SubBot
 Restart=on-failure
