@@ -16,6 +16,6 @@ table: users
 #  port: 3306
 #  user: root
 #  password: pwd
-#  database: e5sub
+#  database: e5subbot
 sqlite:
   db: data.db
