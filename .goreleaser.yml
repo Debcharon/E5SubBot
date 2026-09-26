@@ -1,13 +1,13 @@
+version: 2
 project_name: E5SubBot
-env:
-  - GO111MODULE=on
+
 builds:
-  - env:
+  - main: .
+    binary: E5SubBot
+    env:
       - CGO_ENABLED=0
-    ldflags: -s -w
-    hooks:
-      post:
-        - upx --best "{{ .Path }}"
+    ldflags:
+      - -s -w
     goos:
       - linux
       - windows
@@ -18,8 +18,8 @@ builds:
       - arm
       - arm64
     goarm:
-        - 6
-        - 7
+      - 6
+      - 7
     ignore:
       - goos: windows
         goarch: 386
@@ -31,26 +31,23 @@ builds:
         goarch: arm
       - goos: darwin
         goarch: 386
-checksum:
-  name_template: '{{ .ProjectName }}_checksums.txt'
+
 archives:
-  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
-    replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: 32bit
-      amd64: 64bit
+  - formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - README.md
-      - README_zhCN.md
+      - README_CN.md
       - config.yml.example
       - LICENSE
-snapshot:
-  name_template: "{{ .Tag }}-next"
+
+checksum:
+  name_template: E5SubBot_checksums.txt
+
 changelog:
   sort: asc
   filters:

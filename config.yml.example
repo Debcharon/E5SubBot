@@ -1,13 +1,10 @@
 bot_token: YOUR_BOT_TOKEN
 # socks5: 127.0.0.1:1080
-bindmax: 999
-goroutine: 20
-admin: 111,222,333
-errlimit: 999
-notice: |-
-  aaa
-  bbb
-  ccc
+bindmax: 5
+goroutine: 10
+admin: "123456789"
+errlimit: 5
+notice: ""
 cron: "1 */1 * * *"
 db: sqlite
 table: users

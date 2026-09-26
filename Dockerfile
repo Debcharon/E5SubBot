@@ -1,28 +1,17 @@
-FROM golang:1.27-alpine as builder
+FROM golang:1.27-alpine3.24 AS builder
 
-WORKDIR /app
-
-ENV GO111MODULE=on \
-    GOPROXY=https://goproxy.cn,direct \
-    CGO_ENABLED=0
-
-# cache
-COPY go.mod go.mod
-COPY go.sum go.sum
+WORKDIR /src
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -ldflags '-w -s' -o E5SubBot .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/E5SubBot .
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-    apk update && apk add --no-cache ca-certificates
+FROM alpine:3.24
 
-RUN mkdir build && cp E5SubBot build && mv config.yml.example build/config.yml
-
-FROM alpine:latest
-
-RUN apk add tzdata
-COPY --from=builder /app/build /
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+RUN apk add --no-cache ca-certificates tzdata && mkdir /log
+WORKDIR /
+COPY --from=builder /out/E5SubBot /E5SubBot
+COPY config.yml.example /config.yml
 
 ENTRYPOINT ["/E5SubBot"]
