@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.1
 
 require (
-	github.com/fsnotify/fsnotify v1.5.1
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/guonaihong/gout v0.2.10
 	github.com/iyear/sqlite v1.0.2
 	github.com/robfig/cron/v3 v3.0.1
