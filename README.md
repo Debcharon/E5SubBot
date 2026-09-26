@@ -31,9 +31,40 @@ For an existing installation, keep its current `config.yml` and database path. B
 
 ## Binary and service
 
-Use a binary from this repository's [Releases](https://github.com/Debcharon/E5SubBot/releases), or build locally with `go build -o E5SubBot .`. Keep `config.yml` in the working directory. The [systemd unit](e5subbot.service) expects the binary at `/usr/local/bin/E5SubBot` and the working directory at `/usr/local/etc/E5SubBot`.
+Use a binary from this repository's [Releases](https://github.com/Debcharon/E5SubBot/releases), or build locally with `go build -o E5SubBot .`. Keep `config.yml` in the working directory.
+
+For systemd, install the binary at `/usr/local/bin/E5SubBot` and put `config.yml` in `/usr/local/etc/E5SubBot`. Create an `e5subbot` service account that can read the configuration and write the SQLite database and `log/` directory in that working directory. Save this unit as `/etc/systemd/system/e5subbot.service`:
+
+```ini
+[Unit]
+Description=E5SubBot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=e5subbot
+Group=e5subbot
+WorkingDirectory=/usr/local/etc/E5SubBot
+ExecStart=/usr/local/bin/E5SubBot
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Run `sudo systemctl daemon-reload` and `sudo systemctl enable --now e5subbot` after saving the unit.
 
 `make test` runs the Go tests. `make snapshot` creates local release archives with GoReleaser.
+
+## Publishing a version
+
+After merging changes into `master`, push a version tag such as `v0.6.0`. The [Docker workflow](.github/workflows/docker.yaml) publishes `microcharon/e5subbot:<tag>` and `:latest` for amd64 and arm64. The [binary release workflow](.github/workflows/release.yaml) runs tests, builds the platforms listed in `.goreleaser.yml`, and creates a GitHub Release with archives and checksums.
+
+The Docker job uses the `Docker Hub` GitHub environment. Add `DOCKER_USERNAME` and `DOCKER_TOKEN` as secrets in that environment. GitHub provides the release workflow's `GITHUB_TOKEN` automatically. A tag push starts both workflows independently; check both runs before announcing a version.
 
 ## Configuration
 
