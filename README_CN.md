@@ -62,7 +62,9 @@ WantedBy=multi-user.target
 
 ## 发布新版本
 
-改动合并到 `master` 后，推送 `v0.6.0` 这类版本标签。[Docker 工作流](.github/workflows/docker.yaml)会发布 amd64、arm64 镜像，标签为 `microcharon/e5subbot:<版本标签>` 和 `:latest`。[二进制发布工作流](.github/workflows/release.yaml)会先运行测试，再按 `.goreleaser.yml` 构建归档和校验文件，并创建 GitHub Release。
+版本标签沿用 [tego](https://github.com/Debcharon/tego/releases) 的 `v主版本.年月日.当日序号` 格式。例如 `v1.20260926.0` 表示 2026 年 9 月 26 日（UTC）的首次发布，同日再次发布用 `v1.20260926.1`。换一天后序号从 `0` 开始；出现不兼容的新版本线时再增加主版本号。
+
+改动合并到 `master` 后，给合并后的提交打标签并推送。[Docker 工作流](.github/workflows/docker.yaml)会发布 amd64、arm64 镜像，标签为 `microcharon/e5subbot:<版本标签>` 和 `:latest`。[二进制发布工作流](.github/workflows/release.yaml)会先运行测试，再按 `.goreleaser.yml` 构建归档和校验文件，并创建 GitHub Release。
 
 Docker 任务使用 GitHub 的 `Docker Hub` environment，需要在其中设置 `DOCKER_USERNAME` 和 `DOCKER_TOKEN` 两个 secret。二进制发布使用 GitHub 自动提供的 `GITHUB_TOKEN`。推送标签会独立触发两个工作流，发布前请确认两边均成功。
 

@@ -62,7 +62,9 @@ Run `sudo systemctl daemon-reload` and `sudo systemctl enable --now e5subbot` af
 
 ## Publishing a version
 
-After merging changes into `master`, push a version tag such as `v0.6.0`. The [Docker workflow](.github/workflows/docker.yaml) publishes `microcharon/e5subbot:<tag>` and `:latest` for amd64 and arm64. The [binary release workflow](.github/workflows/release.yaml) runs tests, builds the platforms listed in `.goreleaser.yml`, and creates a GitHub Release with archives and checksums.
+Release tags use `vMAJOR.YYYYMMDD.REVISION`, following [tego](https://github.com/Debcharon/tego/releases): `v1.20260926.0` is the first release on 2026-09-26 (UTC), and `v1.20260926.1` is another release on the same day. Reset `REVISION` to `0` on a new day; change `MAJOR` for a new incompatible release line.
+
+After merging changes into `master`, tag the merged commit and push the tag. The [Docker workflow](.github/workflows/docker.yaml) publishes `microcharon/e5subbot:<tag>` and `:latest` for amd64 and arm64. The [binary release workflow](.github/workflows/release.yaml) runs tests, builds the platforms listed in `.goreleaser.yml`, and creates a GitHub Release with archives and checksums.
 
 The Docker job uses the `Docker Hub` GitHub environment. Add `DOCKER_USERNAME` and `DOCKER_TOKEN` as secrets in that environment. GitHub provides the release workflow's `GITHUB_TOKEN` automatically. A tag push starts both workflows independently; check both runs before announcing a version.
 
