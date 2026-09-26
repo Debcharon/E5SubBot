@@ -12,11 +12,11 @@
 ![](https://img.shields.io/github/last-commit/iyear/E5SubBot?style=flat-square)
 ![](https://img.shields.io/github/downloads/iyear/E5SubBot/total?style=flat-square)
 
-![](https://img.shields.io/github/workflow/status/iyear/E5SubBot/Docker%20Build?label=docker%20build&style=flat-square)
-![](https://img.shields.io/docker/v/iyear/e5subbot?label=docker%20tag&style=flat-square)
-![](https://img.shields.io/docker/image-size/iyear/e5subbot?style=flat-square&label=docker%20image%20size)
+![](https://github.com/Debcharon/E5SubBot/actions/workflows/docker.yaml/badge.svg)
+![](https://img.shields.io/docker/v/microcharon/e5subbot?label=docker%20tag&style=flat-square)
+![](https://img.shields.io/docker/image-size/microcharon/e5subbot?style=flat-square&label=docker%20image%20size)
 
-[English](https://github.com/iyear/E5SubBot) | 简体中文 | [Telegram群组](https://t.me/e5subbot)
+[English](README.md) | 简体中文 | [Telegram群组](https://t.me/e5subbot)
 
 DEMO: https://t.me/E5Sub_bot
 
@@ -53,11 +53,11 @@ Bot创建教程:[Google](https://www.google.com/search?q=telegram+Bot%E5%88%9B%E
 
 `Docker` 部署使用 `sqlite` 作为数据库
 
-支持 `amd64` `386` `arm64` `arm/v6` `arm/v7` 架构
+支持 `amd64` 和 `arm64` 架构
 
 ```shell
 #启动，你可以设置自己想要的时区
-docker run --name e5sub -e TZ="Asia/Shanghai" --restart=always -d iyear/e5subbot:latest
+docker run --name e5sub -e TZ="Asia/Shanghai" --restart=always -d microcharon/e5subbot:latest
 
 #查看log
 docker logs -f e5sub
