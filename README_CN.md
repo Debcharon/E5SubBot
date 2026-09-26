@@ -1,197 +1,65 @@
-<img src="https://github.com/iyear/E5SubBot/raw/master/pics/office.png" alt="logo" width="130" height="130" align="left" />
+# E5SubBot
 
-<h1>E5SubBot</h1>
+[English](README.md) · [Docker 工作流](.github/workflows/docker.yaml)
 
-> A Simple Telebot for E5 Renewal
+E5SubBot 是通过 Telegram 管理账号、定时调用 Microsoft Graph 的机器人。调用 Graph **不保证** Microsoft 365 E5 订阅一定续期。
 
-<br/>
+项目支持 SQLite、MySQL、账号导出、任务反馈和管理员命令。机器人只处理私聊命令。
 
-![](https://img.shields.io/github/go-mod/go-version/iyear/E5SubBot?style=flat-square)
-![](https://img.shields.io/badge/license-GPL-lightgrey.svg?style=flat-square)
-![](https://img.shields.io/github/v/release/iyear/E5SubBot?color=red&style=flat-square)
-![](https://img.shields.io/github/last-commit/iyear/E5SubBot?style=flat-square)
-![](https://img.shields.io/github/downloads/iyear/E5SubBot/total?style=flat-square)
+## 开始使用
 
-![](https://github.com/Debcharon/E5SubBot/actions/workflows/docker.yaml/badge.svg)
-![](https://img.shields.io/docker/v/microcharon/e5subbot?label=docker%20tag&style=flat-square)
-![](https://img.shields.io/docker/image-size/microcharon/e5subbot?style=flat-square&label=docker%20image%20size)
+1. 创建 Telegram 机器人和 Microsoft 应用。配置 `Mail.Read`、`User.Read` 委托权限，并将 `http://localhost/e5sub` 设为重定向 URI。授权请求还会使用 `openid` 和 `offline_access` scope。
+2. 将 [config.yml.example](config.yml.example) 复制为 `config.yml`，填写 `bot_token`、`admin`、`cron` 和数据库配置。文件中含有凭据，请妥善保管。
+3. 通过 Docker 或 Go 二进制启动机器人。在私聊中发送 `/bind`，按提示依次提供应用 ID 与密钥、跳转后的 URL 与账号别名。
 
-[English](README.md) | 简体中文 | [Telegram群组](https://t.me/e5subbot)
+## Docker 部署
 
-DEMO: https://t.me/E5Sub_bot
+镜像为 `microcharon/e5subbot`，支持 `linux/amd64` 和 `linux/arm64`。新建 SQLite 部署时，先将 `config.yml` 中的 `sqlite.db` 设为 `/data/data.db`，然后执行：
 
-## 特性
-
-- 自动续订E5订阅(可自定义的调用频率)
-- 可管理的简易账户系统
-- 完善的任务执行反馈
-- 极为方便的授权方式
-- 使用并发加快运行速度
-
-## 原理
-
-E5订阅为开发者订阅，只要调用相关API就有可能续期
-
-调用 [Outlook ReadMail API](https://docs.microsoft.com/zh-cn/graph/api/user-list-messages?view=graph-rest-1.0&tabs=http)
-实现玄学的续订方式，不保证续订效果。
-
-## 使用方法
-
-1. 在机器人对话框输入 **/bind**
-2. 注册应用，使用E5主账号或同域账号登录，跳转页面获得client_secret。**点击回到快速启动**,获得client_id
-3. 复制client_secret和client_id，以 `client_id client_secret`格式回复
-4. 获得授权链接，使用E5主账号或同域账号登录
-5. 授权后会跳转至`http://localhost/e5sub……`  (会提示网页错误，复制链接即可)
-6. 复制整个浏览框内容，在机器人对话框回复 `链接+空格+别名(用于管理账户)`
-   例如：`http://localhost/e5sub/?code=abcd MyE5`，等待机器人绑定后即完成
-
-## 自行部署
-
-Bot创建教程:[Google](https://www.google.com/search?q=telegram+Bot%E5%88%9B%E5%BB%BA%E6%95%99%E7%A8%8B)
-
-### Docker(推荐)
-
-`Docker` 部署使用 `sqlite` 作为数据库
-
-支持 `amd64` 和 `arm64` 架构
-
-```shell
-#启动，你可以设置自己想要的时区
-docker run --name e5sub -e TZ="Asia/Shanghai" --restart=always -d microcharon/e5subbot:latest
-
-#查看log
+```sh
+mkdir -p data log
+docker run -d --name e5sub --restart=always \
+  -e TZ=Asia/Shanghai \
+  -v "$PWD/config.yml:/config.yml:ro" \
+  -v "$PWD/data:/data" \
+  -v "$PWD/log:/log" \
+  microcharon/e5subbot:latest
 docker logs -f e5sub
-
-#设置配置文件
-docker cp PATH/TO/config.yml e5sub:/config.yml
-docker restart e5sub
-
-#导入数据库
-docker cp PATH/TO/DATA.db e5sub:/data.db
-docker restart e5sub
-
-#备份数据库
-docker cp e5sub:/data.db .
-
-#备份配置文件
-docker cp e5sub:/config.yml .
 ```
 
-### 二进制文件
+现有部署请保留原来的 `config.yml` 和数据库路径。替换容器或调整挂载前，先备份 `data.db`。
 
-在 [Releases](https://github.com/iyear/E5SubBot/releases) 页面下载对应系统的二进制文件，上传至服务器
+## 二进制与系统服务
 
-Windows: 启动 `E5SubBot.exe`
+可从本仓库的 [Releases](https://github.com/Debcharon/E5SubBot/releases) 下载，或用 `go build -o E5SubBot .` 自行构建。`config.yml` 应放在工作目录。[systemd 配置](e5subbot.service)默认使用 `/usr/local/bin/E5SubBot` 和 `/usr/local/etc/E5SubBot`。
 
-Linux:
+`make test` 运行 Go 测试；`make snapshot` 用 GoReleaser 生成本地发布包。
 
-```bash
-screen -S e5sub
-chmod +x E5SubBot
-./E5SubBot
-(Ctrl A+D)
-```
+## 配置项
 
-### 编译
+| 配置 | 用途 |
+| --- | --- |
+| `bot_token` | Telegram 机器人令牌 |
+| `admin` | 可使用 `/task`、`/log` 的 Telegram 用户 ID，逗号分隔 |
+| `cron` | 调用 Graph 的五段式定时表达式 |
+| `db`、`table` | `sqlite` 或 `mysql`，以及原有账号表名（通常为 `users`） |
+| `sqlite.db` | SQLite 数据库路径 |
+| `mysql.*` | 使用 MySQL 时的连接配置 |
+| `bindmax`、`errlimit`、`goroutine` | 每人绑定上限、连续错误上限、任务并发数 |
+| `notice`、`socks5` | 可选的帮助提示与 Telegram SOCKS5 代理 |
 
-下载源码，安装GO环境
+运行时可修改 `bindmax`、`errlimit`、`goroutine`、`admin`、`notice`。修改令牌、数据库、代理、定时表达式或表名后需要重启。
 
-```shell
-git clone https://github.com/iyear/E5SubBot.git && cd E5SubBot && go build
-```
+## 命令
 
-## 部署配置
+| 命令 | 功能 |
+| --- | --- |
+| `/start`、`/help` | 查看帮助与提示 |
+| `/bind` | 绑定 Microsoft 账号 |
+| `/my`、`/unbind` | 查看或解绑自己的账号 |
+| `/export` | 导出含密钥的账号 JSON 文件 |
+| `/task`、`/log` | 手动执行任务或下载日志，仅管理员可用 |
 
-在同目录下创建`config.yml`，编码为`UTF-8`
+任务会保存更新后的 refresh token。账号连续 Graph 调用失败次数超过 `errlimit` 后会自动解绑；请提前备份或导出账号数据。
 
-配置模板:
-
-```yaml
-bot_token: YOUR_BOT_TOKEN
-# socks5: 127.0.0.1:1080
-bindmax: 999
-goroutine: 20
-admin: 111,222,333
-errlimit: 999
-notice: |-
-   aaa
-   bbb
-   ccc
-cron: "1 */1 * * *"
-db: sqlite
-table: users
-# mysql:
-#    host: 127.0.0.1
-#    port: 3306
-#    user: root
-#    password: pwd
-#    database: e5sub
-sqlite:
-   db: data.db
-```
-
-`bindmax`,`notice`,`admin`,`goroutine`,`errlimit`可热更新，直接更新`config.yml`保存即可
-
-|  配置项   | 说明  |默认值|
-|  ----  | ----  | ---- |
-| bot_token  | 更换为自己的`BotToken` | -|
-| socks5  | `Socks5`代理,不需要删去即可.例如:`127.0.0.1:1080` |-|
-|notice|公告.合并至`/help`|-|
-|admin|管理员`tgid`，前往 https://t.me/userinfobot 获取，用`,`隔开;管理员权限: 手动调用任务，获得任务总反馈|-|
-|goroutine|并发数，不要过大|10|
-|errlimit|单账户最大出错次数，满后自动解绑单账户并发送通知，不限制错误次数将值改为负数`(-1)`即可;bot重启后会清零所有错误次数|5|
-|cron|API调用频率，使用cron表达式|-|
-|bindmax|最大可绑定数|5|
-|db|`mysql` 或 `sqlite` ，表示使用的数据库类型，并设置对应的配置|-|
-|table|数据表名(旧版本升级请设置table为 `users`，否则读不到数据表)|-|
-|mysql|`mysql` 配置，请提前创建数据库|-|
-|sqlite|`sqlite` 配置|-|
-
-### 命令
-
-```
-/my 查看已绑定账户信息  
-/bind  绑定新账户  
-/unbind 解绑账户  
-/export 导出账户信息(JSON格式) 
-/help 帮助  
-/task 手动执行一次任务(Bot管理员)  
-/log 获取最近日志文件(Bot管理员)  
-```
-
-## 注意事项
-
-> 更新时间与北京时间不符
-
-更改服务器时区为`Asia/Shanghai`，然后使用`/task`手动执行一次任务刷新时间
-
-> 绑定格式错误
-
-不要带"+"号
-
-> 错误:Can't create more than max_prepared_stmt_count statements (current value: 16382)
-
-没有关闭`db`导致触发`mysql`并发上限，请更新至`v0.1.9`
-
-> 长时间运行崩溃
-
-疑似内存泄露，尚未解决，请自行采用守护进程运行或定时重启`Bot`
-
-> 无法通过Bot创建应用程序
-
-https://t.me/e5subbot/5201
-
-## 更多功能
-
-如果你还想支持新的特性，请发起issue.
-
-## 做出贡献
-
-- 提供其他语言的文档
-- 为代码运行提供帮助
-- 对用户交互提出建议
-- ……
-
-## License
-
-GPLv3 
+项目采用 [GPLv3](LICENSE) 许可证。
