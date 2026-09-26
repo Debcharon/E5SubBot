@@ -12,11 +12,11 @@
 ![](https://img.shields.io/github/last-commit/iyear/E5SubBot?style=flat-square)
 ![](https://img.shields.io/github/downloads/iyear/E5SubBot/total?style=flat-square)
 
-![](https://img.shields.io/github/workflow/status/iyear/E5SubBot/Docker%20Build?label=docker%20build&style=flat-square)
-![](https://img.shields.io/docker/v/iyear/e5subbot?label=docker%20tag&style=flat-square)
-![](https://img.shields.io/docker/image-size/iyear/e5subbot?style=flat-square&label=docker%20image%20size)
+![](https://github.com/Debcharon/E5SubBot/actions/workflows/docker.yaml/badge.svg)
+![](https://img.shields.io/docker/v/microcharon/e5subbot?label=docker%20tag&style=flat-square)
+![](https://img.shields.io/docker/image-size/microcharon/e5subbot?style=flat-square&label=docker%20image%20size)
 
-English | [简体中文](https://github.com/iyear/E5SubBot/blob/master/README_zhCN.md) | [Telegram Chat](https://t.me/e5subbot)
+English | [简体中文](README_CN.md) | [Telegram Chat](https://t.me/e5subbot)
 
 DEMO: https://t.me/E5Sub_bot
 
@@ -56,11 +56,11 @@ tutorial : [Microsoft](https://docs.microsoft.com/en-us/azure/bot-service/bot-se
 
 `Docker` Deployment used `sqlite` as database
 
-Support `amd64` `386` `arm64` `arm/v6` `arm/v7` arch
+Support `amd64` and `arm64` architectures
 
 ```shell
 #launch,you can set the time zone you want
-docker run --name e5sub -e TZ="Asia/Shanghai" --restart=always -d iyear/e5subbot:latest
+docker run --name e5sub -e TZ="Asia/Shanghai" --restart=always -d microcharon/e5subbot:latest
 
 #view logs
 docker logs -f e5sub
