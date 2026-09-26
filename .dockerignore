@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+config.yml
+*.db
+*.db-*
+log
+dist
+*.exe
+*.test

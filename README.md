@@ -1,197 +1,65 @@
-<img src="https://github.com/iyear/E5SubBot/raw/master/pics/office.png" alt="logo" width="130" height="130" align="left" />
+# E5SubBot
 
-<h1>E5SubBot</h1>
+[简体中文](README_CN.md) · [Docker workflow](.github/workflows/docker.yaml)
 
-> A Simple Telebot for E5 Renewal
+E5SubBot is a Telegram bot that calls Microsoft Graph on a schedule for accounts you bind. Calling Graph does **not** guarantee that a Microsoft 365 E5 subscription will renew.
 
-<br/>
+It supports SQLite or MySQL, account export, per-user task feedback, and administrator commands. The bot accepts commands in private chats.
 
-![](https://img.shields.io/github/go-mod/go-version/iyear/E5SubBot?style=flat-square)
-![](https://img.shields.io/badge/license-GPL-lightgrey.svg?style=flat-square)
-![](https://img.shields.io/github/v/release/iyear/E5SubBot?color=red&style=flat-square)
-![](https://img.shields.io/github/last-commit/iyear/E5SubBot?style=flat-square)
-![](https://img.shields.io/github/downloads/iyear/E5SubBot/total?style=flat-square)
+## Set up
 
-![](https://github.com/Debcharon/E5SubBot/actions/workflows/docker.yaml/badge.svg)
-![](https://img.shields.io/docker/v/microcharon/e5subbot?label=docker%20tag&style=flat-square)
-![](https://img.shields.io/docker/image-size/microcharon/e5subbot?style=flat-square&label=docker%20image%20size)
+1. Create a Telegram bot and a Microsoft application. Add delegated `Mail.Read` and `User.Read` permissions and the `http://localhost/e5sub` redirect URI. The authorization request also asks for `openid` and `offline_access` scopes.
+2. Copy [config.yml.example](config.yml.example) to `config.yml`. Set `bot_token`, `admin`, `cron`, and database settings. Keep this file private because it contains credentials.
+3. Start the bot with Docker or a Go binary. Send `/bind` to the bot, then follow its prompts to provide the application ID and secret, followed by the redirected URL and an account alias.
 
-English | [简体中文](README_CN.md) | [Telegram Chat](https://t.me/e5subbot)
+## Docker
 
-DEMO: https://t.me/E5Sub_bot
+The published image is `microcharon/e5subbot` for `linux/amd64` and `linux/arm64`. For a new SQLite installation, set `sqlite.db: /data/data.db` in `config.yml`, then run:
 
-## Feature
-
-- Automatically Renew E5 Subscription(Customizable Frequency)
-- Manageable Simple Account System
-- Available Task Execution Feedback
-- Convenient Authorization
-- Use concurrency to speed up
-
-## Principle
-
-E5 subscription is a subscription for developers, as long as the related API is called, it may be renewed
-
-Calling [Outlook ReadMail API](https://docs.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0&tabs=http)
-to renew, does not guarantee the renewal effect.
-
-## Usage
-
-1. Type `/bind` in the robot dialog
-2. Click the link sent by the robot and register the Microsoft application, log in with the E5 master account or the
-   same domain account, and obtain `client_secret`. **Click to go back to Quick Start**, get `client_id`
-3. Copy `client_secret` and `client_id` and reply to bot in the format of `client_id(space)client_secret`
-   (Pay attention to spaces)
-4. Click on the authorization link sent by the robot and log in with the `E5` master account or the same domain account
-5. After authorization, it will jump to `http://localhost/e5sub……` (will prompt webpage error, just copy the link)
-6. Copy the link, and reply `link(space)alias (used to manage accounts)` in the robot dialog For
-   example: `http://localhost/e5sub/?code=abcd MyE5`, wait for the robot to bind and then complete
-
-## Deploy Your Own Bot
-
-Bot creation
-tutorial : [Microsoft](https://docs.microsoft.com/en-us/azure/bot-service/bot-service-channel-connect-telegram?view=azure-bot-service-4.0)
-
-### Docker(Recommended)
-
-`Docker` Deployment used `sqlite` as database
-
-Support `amd64` and `arm64` architectures
-
-```shell
-#launch,you can set the time zone you want
-docker run --name e5sub -e TZ="Asia/Shanghai" --restart=always -d microcharon/e5subbot:latest
-
-#view logs
+```sh
+mkdir -p data log
+docker run -d --name e5sub --restart=always \
+  -e TZ=Asia/Shanghai \
+  -v "$PWD/config.yml:/config.yml:ro" \
+  -v "$PWD/data:/data" \
+  -v "$PWD/log:/log" \
+  microcharon/e5subbot:latest
 docker logs -f e5sub
-
-#set config
-docker cp PATH/TO/config.yml e5sub:/config.yml
-docker restart e5sub
-
-#import db
-docker cp PATH/TO/DATA.db e5sub:/data.db
-docker restart e5sub
-
-#backup db
-docker cp e5sub:/data.db .
-
-#backup config
-docker cp e5sub:/config.yml .
 ```
 
-### Binary Deployment
+For an existing installation, keep its current `config.yml` and database path. Back up `data.db` before replacing a container or changing mounts.
 
-Download the binary files of the corresponding system on the [Releases](https://github.com/iyear/E5SubBot/releases) page
-and upload it to the server
+## Binary and service
 
-Windows: Start `E5SubBot.exe`
+Use a binary from this repository's [Releases](https://github.com/Debcharon/E5SubBot/releases), or build locally with `go build -o E5SubBot .`. Keep `config.yml` in the working directory. The [systemd unit](e5subbot.service) expects the binary at `/usr/local/bin/E5SubBot` and the working directory at `/usr/local/etc/E5SubBot`.
 
-Linux:
-
-```bash
-screen -S e5sub
-chmod +x E5SubBot
-./E5SubBot
-(Ctrl A+D)
-```
-
-### Compile
-
-Download the source code and install the GO environment
-
-```shell
-git clone https://github.com/iyear/E5SubBot.git && cd E5SubBot && go build
-```
+`make test` runs the Go tests. `make snapshot` creates local release archives with GoReleaser.
 
 ## Configuration
 
-Create `config.yml` in the same directory, encoded as `UTF-8`
+| Key | Purpose |
+| --- | --- |
+| `bot_token` | Telegram bot token |
+| `admin` | Comma-separated Telegram user IDs for `/task` and `/log` |
+| `cron` | Five-field schedule for Graph requests |
+| `db`, `table` | `sqlite` or `mysql`; existing account table name (usually `users`) |
+| `sqlite.db` | SQLite database path |
+| `mysql.*` | MySQL connection settings when `db: mysql` |
+| `bindmax`, `errlimit`, `goroutine` | Per-user account limit, repeated-error limit, and task worker count |
+| `notice`, `socks5` | Optional help text and Telegram SOCKS5 proxy |
 
-Configuration Template:
+`bindmax`, `errlimit`, `goroutine`, `admin`, and `notice` can be changed while the bot runs. Restart it after changing the token, database, proxy, cron schedule, or table name.
 
-```yaml
-bot_token: YOUR_BOT_TOKEN
-# socks5: 127.0.0.1:1080
-bindmax: 999
-goroutine: 20
-admin: 111,222,333
-errlimit: 999
-notice: |-
-   aaa
-   bbb
-   ccc
-cron: "1 */1 * * *"
-db: sqlite
-table: users
-# mysql:
-#    host: 127.0.0.1
-#    port: 3306
-#    user: root
-#    password: pwd
-#    database: e5sub
-sqlite:
-   db: data.db
-```
+## Commands
 
-`bindmax`, `notice`, `admin`,`goroutine`, `errlimit` can be hot updated, just update `config.yml` to save.
+| Command | Action |
+| --- | --- |
+| `/start`, `/help` | Show help and configured notice |
+| `/bind` | Bind a Microsoft account |
+| `/my`, `/unbind` | View or remove your accounts |
+| `/export` | Send your account data as JSON; the file contains secrets |
+| `/task`, `/log` | Run a task or download the log (administrators only) |
 
-|  Configuration   | Explanation|Default|
-|  ----  | ----  |----|
-| bot_token  | Change to your own `BotToken` |-|
-| socks5  | `Socks5` proxy,if you do not need ,you should delete it. For example: `127.0.0.1:1080` |-|
-|notice|Announcement. Merged into `/help`|-|
-|admin|The administrator's `tgid`, go to https://t.me/userinfobot to get it, separated by `,`; Administrator permissions: manually call the task, get the total feedback of the task|-|
-|goroutine|Concurrent number, don’t be too big|10|
-|errlimit|The maximum number of errors for a single account, automatically unbind the single account and send a notification when it is full, without limiting the number of errors, change the value to a negative number `(-1)`; all errors will be cleared after the bot restarts|5|
-|cron|API call frequency, using `cron` expression|-|
-|bindmax|Maximum number of bindable|5|
-|db|`mysql` or `sqlite` , Indicates the database type used and sets the corresponding configuration|-|
-|table|Table name (set table to `users` when upgrading the old version; otherwise, the data table cannot be read)|-|
-|mysql|To configure `mysql`, create a database in advance|-|
-|sqlite|`sqlite` configuration|-|
+The task stores rotated refresh tokens. Accounts exceeding `errlimit` consecutive Graph errors are automatically unbound; back up or export account data before relying on that behavior.
 
-### Command
-
-```
-/my View bound account information
-/bind Bind new account
-/unbind Unbind account
-/export Export account information (JSON format)
-/help help
-/task Manually execute a task (Bot Administrator)
-/log Get the most recent log file (Bot Administrator)
-```
-
-## Others
-
-> Feedback time is not as expected
-
-Change the server time zone, use `/task` to manually perform a task to refresh time.
-
-> ERROR:Can't create more than max_prepared_stmt_count statements (current value: 16382).
-
-Failure to close `db` leads to triggering `mysql` concurrency limit, please update to `v0.1.9`.
-
-> Long running crash
-
-Suspected memory leak. Not yet resolved, please run the daemon or restart Bot regularly.
-
-> Unable to create application via bot
-
-https://t.me/e5subbot/5201
-
-## Contributing
-
-- Provide documentation in other languages
-- Provide help for code operation
-- Suggests user interaction
-- ……
-
-## More Functions
-
-If you still want to support new features, please initiate an issue.
-
-## License
-
-GPLv3 
+Licensed under [GPLv3](LICENSE).

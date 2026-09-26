@@ -1,3 +1,10 @@
-.PHONY:build
+.PHONY: build test snapshot
+
 build:
-	goreleaser release --skip-publish --snapshot --rm-dist
+	go build -o E5SubBot .
+
+test:
+	go test ./...
+
+snapshot:
+	goreleaser release --snapshot --clean
