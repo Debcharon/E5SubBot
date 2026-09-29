@@ -1,8 +1,6 @@
 module github.com/Debcharon/E5SubBot
 
-go 1.24.0
-
-toolchain go1.24.1
+go 1.26.0
 
 require (
 	github.com/fsnotify/fsnotify v1.10.1
@@ -10,7 +8,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.28.0
-	golang.org/x/net v0.47.0
+	golang.org/x/net v0.59.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/tucnak/telebot.v2 v2.5.0
 	modernc.org/sqlite v1.14.0
@@ -34,11 +32,11 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/mod v0.29.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
-	golang.org/x/tools v0.38.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/tools v0.49.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/uint128 v1.1.1 // indirect
 	modernc.org/cc/v3 v3.35.17 // indirect
