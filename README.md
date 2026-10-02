@@ -33,6 +33,8 @@ For an existing installation, keep its current `config.yml` and database path. B
 
 Use a binary from this repository's [Releases](https://github.com/Debcharon/E5SubBot/releases), or build locally with `go build -o E5SubBot .`. Keep `config.yml` in the working directory.
 
+Release archives support Linux amd64/arm64, Windows amd64, and macOS amd64/arm64. Run `E5SubBot --version` to see the version, commit, and build date.
+
 For systemd, install the binary at `/usr/local/bin/E5SubBot` and put `config.yml` in `/usr/local/etc/E5SubBot`. Create an `e5subbot` service account that can read the configuration and write the SQLite database and `log/` directory in that working directory. Save this unit as `/etc/systemd/system/e5subbot.service`:
 
 ```ini
@@ -68,20 +70,23 @@ After merging changes into `master`, tag the merged commit and push the tag. The
 
 The Docker job uses the `Docker Hub` GitHub environment. Add `DOCKER_USERNAME` and `DOCKER_TOKEN` as secrets in that environment. GitHub provides the release workflow's `GITHUB_TOKEN` automatically. A tag push starts both workflows independently; check both runs before announcing a version.
 
+Pull requests and pushes to `master` run formatting checks, race tests, `go vet`, workflow linting, and release configuration checks. Both publishing workflows also validate the target tag before publishing.
+
 ## Configuration
 
 | Key | Purpose |
 | --- | --- |
 | `bot_token` | Telegram bot token |
-| `admin` | Comma-separated Telegram user IDs for `/task` and `/log` |
+| `admin` | Comma-separated Telegram user IDs for `/task`, `/status`, and `/log` |
 | `cron` | Five-field schedule for Graph requests |
 | `db`, `table` | `sqlite` or `mysql`; existing account table name (usually `users`) |
 | `sqlite.db` | SQLite database path |
 | `mysql.*` | MySQL connection settings when `db: mysql` |
-| `bindmax`, `errlimit`, `goroutine` | Per-user account limit, repeated-error limit, and task worker count |
+| `bindmax`, `errlimit`, `goroutine` | Per-user account limit, consecutive authorization-error notification threshold, and task worker count |
+| `log_stdout_only` | Default `false`; set to `true` to write only to standard output |
 | `notice`, `socks5` | Optional help text and Telegram SOCKS5 proxy |
 
-`bindmax`, `errlimit`, `goroutine`, `admin`, and `notice` can be changed while the bot runs. Restart it after changing the token, database, proxy, cron schedule, or table name.
+`bindmax`, `errlimit`, `goroutine`, `admin`, and `notice` can be changed while the bot runs. Restart it after changing the token, database, proxy, cron schedule, table name, or logging mode. With stdout-only logging, use `journalctl -u e5subbot` or `docker logs e5sub`; `/log` does not provide a file.
 
 ## Commands
 
@@ -89,10 +94,13 @@ The Docker job uses the `Docker Hub` GitHub environment. Add `DOCKER_USERNAME` a
 | --- | --- |
 | `/start`, `/help` | Show help and configured notice |
 | `/bind` | Bind a Microsoft account |
+| `/cancel` | Cancel binding; unfinished sessions expire after 15 minutes |
 | `/my`, `/unbind` | View or remove your accounts |
 | `/export` | Send your account data as JSON; the file contains secrets |
-| `/task`, `/log` | Run a task or download the log (administrators only) |
+| `/task`, `/status`, `/log` | Run a task, view the version and latest task status, or download the log (administrators only) |
 
-The task stores rotated refresh tokens. Accounts exceeding `errlimit` consecutive Graph errors are automatically unbound; back up or export account data before relying on that behavior.
+The task stores rotated refresh tokens even if the subsequent mail request fails. Network failures, throttling, and server errors never automatically unbind accounts; throttling and server errors receive bounded retries. After more than `errlimit` consecutive explicit authorization errors, the bot asks for reauthorization and retains the account data. Error counters and the latest task status reset after a restart.
+
+To update authorization or application credentials, back up with `/export`, then use `/unbind` and `/bind`. Account details hide secrets; exported files still contain complete credentials and must be kept private.
 
 Licensed under [GPLv3](LICENSE).

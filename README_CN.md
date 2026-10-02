@@ -33,6 +33,8 @@ docker logs -f e5sub
 
 可从本仓库的 [Releases](https://github.com/Debcharon/E5SubBot/releases) 下载，或用 `go build -o E5SubBot .` 自行构建。`config.yml` 应放在工作目录。
 
+发布包支持 Linux amd64/arm64、Windows amd64、macOS amd64/arm64。运行 `E5SubBot --version` 查看版本、提交号和构建时间。
+
 使用 systemd 时，将二进制放在 `/usr/local/bin/E5SubBot`，将 `config.yml` 放在 `/usr/local/etc/E5SubBot`。创建 `e5subbot` 服务账号，使其能读取配置，并能在工作目录中写入 SQLite 数据库和 `log/` 目录。将以下内容保存为 `/etc/systemd/system/e5subbot.service`：
 
 ```ini
@@ -68,20 +70,23 @@ WantedBy=multi-user.target
 
 Docker 任务使用 GitHub 的 `Docker Hub` environment，需要在其中设置 `DOCKER_USERNAME` 和 `DOCKER_TOKEN` 两个 secret。二进制发布使用 GitHub 自动提供的 `GITHUB_TOKEN`。推送标签会独立触发两个工作流，发布前请确认两边均成功。
 
+PR 和 `master` 推送会执行格式检查、带竞态检测的测试、`go vet`、工作流及发布配置检查。Docker 和二进制工作流也会先检查目标标签，再进行发布。
+
 ## 配置项
 
 | 配置 | 用途 |
 | --- | --- |
 | `bot_token` | Telegram 机器人令牌 |
-| `admin` | 可使用 `/task`、`/log` 的 Telegram 用户 ID，逗号分隔 |
+| `admin` | 可使用 `/task`、`/status`、`/log` 的 Telegram 用户 ID，逗号分隔 |
 | `cron` | 调用 Graph 的五段式定时表达式 |
 | `db`、`table` | `sqlite` 或 `mysql`，以及原有账号表名（通常为 `users`） |
 | `sqlite.db` | SQLite 数据库路径 |
 | `mysql.*` | 使用 MySQL 时的连接配置 |
-| `bindmax`、`errlimit`、`goroutine` | 每人绑定上限、连续错误上限、任务并发数 |
+| `bindmax`、`errlimit`、`goroutine` | 每人绑定上限、连续授权错误提示阈值、任务并发数 |
+| `log_stdout_only` | 默认 `false`；设为 `true` 仅输出到标准输出，不写日志文件 |
 | `notice`、`socks5` | 可选的帮助提示与 Telegram SOCKS5 代理 |
 
-运行时可修改 `bindmax`、`errlimit`、`goroutine`、`admin`、`notice`。修改令牌、数据库、代理、定时表达式或表名后需要重启。
+运行时可修改 `bindmax`、`errlimit`、`goroutine`、`admin`、`notice`。修改令牌、数据库、代理、定时表达式、表名或日志模式后需要重启。仅标准输出模式下，使用 `journalctl -u e5subbot` 或 `docker logs e5sub` 查看日志，`/log` 不提供文件。
 
 ## 命令
 
@@ -89,10 +94,13 @@ Docker 任务使用 GitHub 的 `Docker Hub` environment，需要在其中设置 
 | --- | --- |
 | `/start`、`/help` | 查看帮助与提示 |
 | `/bind` | 绑定 Microsoft 账号 |
+| `/cancel` | 取消绑定；未完成的会话 15 分钟后过期 |
 | `/my`、`/unbind` | 查看或解绑自己的账号 |
 | `/export` | 导出含密钥的账号 JSON 文件 |
-| `/task`、`/log` | 手动执行任务或下载日志，仅管理员可用 |
+| `/task`、`/status`、`/log` | 手动执行任务、查看版本及最近任务状态、下载日志，仅管理员可用 |
 
-任务会保存更新后的 refresh token。账号连续 Graph 调用失败次数超过 `errlimit` 后会自动解绑；请提前备份或导出账号数据。
+任务会保存更新后的 refresh token，即使后续邮件请求失败。临时网络故障、限流及服务器错误不会导致自动解绑；限流及服务器错误会进行有限重试。明确的授权错误连续超过 `errlimit` 后提示重新授权，账号资料始终保留。错误计数和最近任务状态在重启后清空。
+
+需要更新授权或应用密钥时，先用 `/export` 备份，再通过 `/unbind` 和 `/bind` 重新绑定。账号详情隐藏密钥，导出文件仍包含完整凭据，请妥善保管。
 
 项目采用 [GPLv3](LICENSE) 许可证。
