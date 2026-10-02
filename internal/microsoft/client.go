@@ -3,10 +3,12 @@ package microsoft
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -105,7 +107,7 @@ func (c *Client) GetUserInfo(ctx context.Context, id, secret, refresh string) (s
 		return "", User{}, err
 	}
 	request.Header.Set("Authorization", "Bearer "+access)
-	response, err := c.http.Do(request)
+	response, err := c.do(ctx, request)
 	if err != nil {
 		return "", User{}, fmt.Errorf("request user info: %w", err)
 	}
@@ -128,18 +130,22 @@ func (c *Client) GetOutlookMails(ctx context.Context, id, secret, refresh string
 	if err != nil {
 		return "", err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, graphURL+"/v1.0/me/messages", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, graphURL+"/v1.0/me/messages?$top=1&$select=id", nil)
 	if err != nil {
-		return "", err
+		return next, err
 	}
 	request.Header.Set("Authorization", "Bearer "+access)
-	response, err := c.http.Do(request)
+	response, err := c.do(ctx, request)
 	if err != nil {
-		return "", fmt.Errorf("request Outlook messages: %w", err)
+		return next, fmt.Errorf("request Outlook messages: %w", err)
 	}
 	defer response.Body.Close()
 	if err := responseError(response); err != nil {
-		return "", err
+		return next, err
+	}
+	_, err = io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
+	if err != nil {
+		return next, fmt.Errorf("read Outlook response: %w", err)
 	}
 	return next, nil
 }
@@ -150,7 +156,7 @@ func (c *Client) token(ctx context.Context, values url.Values) (tokenResponse, e
 		return tokenResponse{}, err
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	response, err := c.http.Do(request)
+	response, err := c.do(ctx, request)
 	if err != nil {
 		return tokenResponse{}, fmt.Errorf("request Microsoft token: %w", err)
 	}
@@ -172,5 +178,100 @@ func responseError(response *http.Response) error {
 	if response.StatusCode >= 200 && response.StatusCode < 300 {
 		return nil
 	}
-	return fmt.Errorf("Microsoft API returned HTTP %d", response.StatusCode)
+	var body struct {
+		Error json.RawMessage `json:"error"`
+	}
+	_ = json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&body)
+	var code string
+	if json.Unmarshal(body.Error, &code) != nil {
+		var graph struct {
+			Code string `json:"code"`
+		}
+		_ = json.Unmarshal(body.Error, &graph)
+		code = graph.Code
+	}
+	// Keep response descriptions and unknown codes out of logs and Telegram messages.
+	if code != "invalid_grant" && code != "invalid_client" && code != "unauthorized_client" {
+		code = ""
+	}
+	return &APIError{Status: response.StatusCode, Code: code}
+}
+
+type APIError struct {
+	Status int
+	Code   string
+}
+
+func (e *APIError) Error() string {
+	if e.Code != "" {
+		return fmt.Sprintf("Microsoft API returned HTTP %d (%s)", e.Status, e.Code)
+	}
+	return fmt.Sprintf("Microsoft API returned HTTP %d", e.Status)
+}
+
+func RequiresAuthorization(err error) bool {
+	var api *APIError
+	return errors.As(err, &api) && (api.Status == 400 || api.Status == 401) && (api.Code == "invalid_grant" || api.Code == "invalid_client" || api.Code == "unauthorized_client")
+}
+
+// Retry safe transient responses with a bounded budget. Authorization-code exchanges
+// are single use, so only GET requests and refresh-token exchanges are retried.
+func (c *Client) do(ctx context.Context, request *http.Request) (*http.Response, error) {
+	safe := request.Method == http.MethodGet
+	if request.GetBody != nil {
+		body, err := request.GetBody()
+		if err != nil {
+			return nil, err
+		}
+		data, err := io.ReadAll(body)
+		body.Close()
+		if err != nil {
+			return nil, err
+		}
+		values, _ := url.ParseQuery(string(data))
+		safe = values.Get("grant_type") == "refresh_token"
+	}
+	for attempt := 0; ; attempt++ {
+		response, err := c.http.Do(request)
+		if err != nil {
+			return nil, err
+		}
+		if !safe || attempt >= 2 || (response.StatusCode != 429 && response.StatusCode < 500) {
+			return response, nil
+		}
+		delay := time.Second << attempt
+		if raw := response.Header.Get("Retry-After"); raw != "" {
+			if seconds, err := strconv.Atoi(raw); err == nil && seconds >= 0 {
+				if seconds > 30 {
+					return response, nil
+				}
+				delay = time.Duration(seconds) * time.Second
+			} else if when, err := http.ParseTime(raw); err == nil {
+				delay = time.Until(when)
+				if delay < 0 {
+					delay = 0
+				}
+			}
+		}
+		// Do not retry earlier than requested when the server asks for a long wait.
+		if delay > 30*time.Second {
+			return response, nil
+		}
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
+		response.Body.Close()
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+		request = request.Clone(ctx)
+		if request.GetBody != nil {
+			request.Body, err = request.GetBody()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 }
