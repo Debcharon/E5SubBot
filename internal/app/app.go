@@ -7,6 +7,7 @@ import (
 
 	"github.com/Debcharon/E5SubBot/internal/account"
 	"github.com/Debcharon/E5SubBot/internal/bot"
+	"github.com/Debcharon/E5SubBot/internal/buildinfo"
 	"github.com/Debcharon/E5SubBot/internal/config"
 	"github.com/Debcharon/E5SubBot/internal/microsoft"
 	"github.com/Debcharon/E5SubBot/internal/renewal"
@@ -21,11 +22,12 @@ func Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	logger, err := newLogger()
+	logger, err := newLogger(settings.Current().LogStdoutOnly)
 	if err != nil {
 		return err
 	}
 	defer logger.Sync()
+	logger.Info("starting E5SubBot", zap.String("version", buildinfo.Version), zap.String("commit", buildinfo.Commit), zap.String("build_date", buildinfo.Date))
 	accounts, err := account.Open(settings.Current())
 	if err != nil {
 		return err
@@ -49,7 +51,12 @@ func Run(ctx context.Context) error {
 	return nil
 }
 
-func newLogger() (*zap.Logger, error) {
+func newLogger(stdoutOnly bool) (*zap.Logger, error) {
+	encoder := zap.NewProductionEncoderConfig()
+	encoder.EncodeTime = zapcore.ISO8601TimeEncoder
+	if stdoutOnly {
+		return zap.New(zapcore.NewCore(zapcore.NewJSONEncoder(encoder), zapcore.AddSync(os.Stdout), zapcore.InfoLevel), zap.AddCaller()), nil
+	}
 	if err := os.MkdirAll("./log", 0700); err != nil {
 		return nil, fmt.Errorf("create log directory: %w", err)
 	}
@@ -57,8 +64,6 @@ func newLogger() (*zap.Logger, error) {
 		Filename: "./log/latest.log", MaxSize: 1, MaxBackups: 5,
 		MaxAge: 30, Compress: true,
 	}
-	encoder := zap.NewProductionEncoderConfig()
-	encoder.EncodeTime = zapcore.ISO8601TimeEncoder
 	core := zapcore.NewCore(zapcore.NewJSONEncoder(encoder),
 		zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(file)),
 		zapcore.InfoLevel)
