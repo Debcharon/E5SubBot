@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -39,6 +40,10 @@ type Bot struct {
 	ctx       context.Context
 	mu        sync.Mutex
 	bindings  map[int64]binding
+	bindLocks [64]sync.Mutex
+	taskMu    sync.Mutex
+	taskWG    sync.WaitGroup
+	stopping  bool
 }
 
 func New(ctx context.Context, settings Settings, accounts AccountStore, ms *microsoft.Client, runner *renewal.Runner, logger *zap.Logger) (*Bot, error) {
@@ -46,7 +51,7 @@ func New(ctx context.Context, settings Settings, accounts AccountStore, ms *micr
 	poller := tb.NewMiddlewarePoller(&tb.LongPoller{Timeout: 15 * time.Second}, func(update *tb.Update) bool {
 		return update.Message == nil || update.Message.Private()
 	})
-	botSettings := tb.Settings{Token: cfg.BotToken, Poller: poller}
+	botSettings := tb.Settings{Token: cfg.BotToken, Poller: poller, Client: &http.Client{Timeout: 30 * time.Second}}
 	if cfg.Socks5 != "" {
 		dialer, err := proxy.SOCKS5("tcp", cfg.Socks5, nil, proxy.Direct)
 		if err != nil {
@@ -74,9 +79,11 @@ func (b *Bot) registerHandlers() {
 	b.api.Handle("/help", b.onHelp)
 	b.api.Handle("/my", b.onMy)
 	b.api.Handle("/bind", b.onBind)
+	b.api.Handle("/cancel", b.onCancel)
 	b.api.Handle("/unbind", b.onUnbind)
 	b.api.Handle("/export", b.onExport)
 	b.api.Handle("/task", b.onTask)
+	b.api.Handle("/status", b.onStatus)
 	b.api.Handle("/log", b.onLog)
 	b.api.Handle(tb.OnText, b.onText)
 	b.api.Handle(&tb.InlineButton{Unique: "account-view"}, b.onView)
@@ -84,17 +91,51 @@ func (b *Bot) registerHandlers() {
 }
 
 func (b *Bot) Start() {
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-b.ctx.Done():
+				return
+			case now := <-ticker.C:
+				b.expireBindings(now)
+			}
+		}
+	}()
 	b.logger.Info("Telegram bot started", zap.Int64("bot_id", b.api.Me.ID), zap.String("username", b.api.Me.Username))
 	b.api.Start()
 }
 
 func (b *Bot) Stop() {
+	b.taskMu.Lock()
+	b.stopping = true
+	b.taskMu.Unlock()
 	b.api.Stop()
+	b.taskWG.Wait()
 }
 
 func (b *Bot) send(to tb.Recipient, message interface{}, options ...interface{}) {
-	if _, err := b.api.Send(to, message, options...); err != nil {
-		b.logger.Warn("send Telegram message", zap.Error(err))
+	for attempt := 0; attempt < 3; attempt++ {
+		if b.ctx.Err() != nil {
+			return
+		}
+		_, err := b.api.Send(to, message, options...)
+		if err == nil {
+			return
+		}
+		var flood tb.FloodError
+		if attempt == 2 || !errors.As(err, &flood) || flood.RetryAfter < 0 || flood.RetryAfter > 30 {
+			b.logger.Warn("send Telegram message", zap.Error(err))
+			return
+		}
+		timer := time.NewTimer(time.Duration(flood.RetryAfter) * time.Second)
+		select {
+		case <-b.ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
 	}
 }
 

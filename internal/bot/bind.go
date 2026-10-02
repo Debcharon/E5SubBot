@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/Debcharon/E5SubBot/internal/account"
 	"github.com/Debcharon/E5SubBot/internal/microsoft"
@@ -20,14 +21,40 @@ const (
 )
 
 type binding struct {
-	step   bindingStep
-	id     string
-	secret string
+	step    bindingStep
+	id      string
+	secret  string
+	expires time.Time
+}
+
+const bindingTTL = 15 * time.Minute
+
+func (b *Bot) expireBindings(now time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for id, state := range b.bindings {
+		if !now.Before(state.expires) {
+			delete(b.bindings, id)
+		}
+	}
+}
+
+func (b *Bot) onCancel(message *tb.Message) {
+	lock := &b.bindLocks[uint64(message.Chat.ID)%uint64(len(b.bindLocks))]
+	lock.Lock()
+	defer lock.Unlock()
+	b.mu.Lock()
+	delete(b.bindings, message.Chat.ID)
+	b.mu.Unlock()
+	b.send(message.Chat, "Binding cancelled.")
 }
 
 func (b *Bot) onBind(message *tb.Message) {
+	lock := &b.bindLocks[uint64(message.Chat.ID)%uint64(len(b.bindLocks))]
+	lock.Lock()
+	defer lock.Unlock()
 	b.mu.Lock()
-	b.bindings[message.Chat.ID] = binding{step: waitingForCredentials}
+	b.bindings[message.Chat.ID] = binding{step: waitingForCredentials, expires: time.Now().Add(bindingTTL)}
 	b.mu.Unlock()
 	b.send(message.Chat, fmt.Sprintf("Register application [Directly](%s)", microsoft.RegistrationURL()), tb.ModeMarkdown)
 	b.send(message.Chat, "Please reply with your `client_id` + `client_secret`", &tb.SendOptions{
@@ -36,11 +63,18 @@ func (b *Bot) onBind(message *tb.Message) {
 }
 
 func (b *Bot) onText(message *tb.Message) {
+	lock := &b.bindLocks[uint64(message.Chat.ID)%uint64(len(b.bindLocks))]
+	lock.Lock()
+	defer lock.Unlock()
 	b.mu.Lock()
 	state, ok := b.bindings[message.Chat.ID]
+	if ok && !time.Now().Before(state.expires) {
+		delete(b.bindings, message.Chat.ID)
+		ok = false
+	}
 	b.mu.Unlock()
 	if !ok {
-		b.send(message.Chat, "Send /help to get help")
+		b.send(message.Chat, "No active binding session. Send /bind to start or /help for help.")
 		return
 	}
 	switch state.step {
@@ -63,7 +97,7 @@ func (b *Bot) onCredentials(message *tb.Message) {
 	}
 	id, secret := parts[0], parts[1]
 	b.mu.Lock()
-	b.bindings[message.Chat.ID] = binding{step: waitingForAuthorization, id: id, secret: secret}
+	b.bindings[message.Chat.ID] = binding{step: waitingForAuthorization, id: id, secret: secret, expires: time.Now().Add(bindingTTL)}
 	b.mu.Unlock()
 	b.send(message.Chat, fmt.Sprintf("Authorize account [Directly](%s)", microsoft.AuthorizationURL(id)), tb.ModeMarkdown)
 	b.send(message.Chat, "Please reply with http://localhost/... and an alias", &tb.SendOptions{

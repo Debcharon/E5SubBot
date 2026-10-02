@@ -4,6 +4,7 @@ bindmax: 5
 goroutine: 10
 admin: "123456789"
 errlimit: 5
+log_stdout_only: false
 notice: ""
 cron: "1 */1 * * *"
 db: sqlite

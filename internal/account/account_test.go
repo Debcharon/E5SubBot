@@ -52,11 +52,13 @@ func TestLegacySQLiteTableAndOwnership(t *testing.T) {
 	}
 	client := clients[0]
 	client.RefreshToken = "rotated-refresh"
+	client.Alias = "stale snapshot"
+	client.ClientSecret = "stale secret"
 	if err := repo.Update(ctx, &client); err != nil {
 		t.Fatal(err)
 	}
 	updated, err := repo.GetForUser(ctx, client.ID, 101)
-	if err != nil || updated.RefreshToken != "rotated-refresh" {
+	if err != nil || updated.RefreshToken != "rotated-refresh" || updated.Alias != "legacy" || updated.ClientSecret != "secret" || updated.UpdatedAtUnix != 1000 {
 		t.Fatalf("token rotation was not saved: client=%+v err=%v", updated, err)
 	}
 	if deleted, err := repo.DeleteForUser(ctx, client.ID, 101); err != nil || !deleted {

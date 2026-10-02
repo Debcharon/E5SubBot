@@ -22,18 +22,19 @@ type MySQL struct {
 }
 
 type Config struct {
-	BotToken   string
-	Socks5     string
-	BindMax    int
-	Workers    int
-	ErrorLimit int
-	Cron       string
-	Notice     string
-	Admins     []int64
-	Database   string
-	Table      string
-	SQLitePath string
-	MySQL      MySQL
+	BotToken      string
+	Socks5        string
+	BindMax       int
+	Workers       int
+	ErrorLimit    int
+	Cron          string
+	Notice        string
+	Admins        []int64
+	Database      string
+	Table         string
+	SQLitePath    string
+	MySQL         MySQL
+	LogStdoutOnly bool
 }
 
 type Manager struct {
@@ -84,16 +85,17 @@ func (m *Manager) Current() Config {
 
 func decode(v *viper.Viper) (Config, error) {
 	cfg := Config{
-		BotToken:   strings.TrimSpace(v.GetString("bot_token")),
-		Socks5:     strings.TrimSpace(v.GetString("socks5")),
-		BindMax:    v.GetInt("bindmax"),
-		Workers:    v.GetInt("goroutine"),
-		ErrorLimit: v.GetInt("errlimit"),
-		Cron:       strings.TrimSpace(v.GetString("cron")),
-		Notice:     v.GetString("notice"),
-		Database:   strings.ToLower(strings.TrimSpace(v.GetString("db"))),
-		Table:      strings.TrimSpace(v.GetString("table")),
-		SQLitePath: strings.TrimSpace(v.GetString("sqlite.db")),
+		BotToken:      strings.TrimSpace(v.GetString("bot_token")),
+		Socks5:        strings.TrimSpace(v.GetString("socks5")),
+		BindMax:       v.GetInt("bindmax"),
+		Workers:       v.GetInt("goroutine"),
+		ErrorLimit:    v.GetInt("errlimit"),
+		Cron:          strings.TrimSpace(v.GetString("cron")),
+		Notice:        v.GetString("notice"),
+		LogStdoutOnly: v.GetBool("log_stdout_only"),
+		Database:      strings.ToLower(strings.TrimSpace(v.GetString("db"))),
+		Table:         strings.TrimSpace(v.GetString("table")),
+		SQLitePath:    strings.TrimSpace(v.GetString("sqlite.db")),
 		MySQL: MySQL{
 			Host:     strings.TrimSpace(v.GetString("mysql.host")),
 			Port:     v.GetInt("mysql.port"),

@@ -2,10 +2,14 @@ package bot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/Debcharon/E5SubBot/internal/buildinfo"
+	"github.com/Debcharon/E5SubBot/internal/renewal"
 
 	"go.uber.org/zap"
 	tb "gopkg.in/tucnak/telebot.v2"
@@ -16,6 +20,7 @@ const welcome = "Welcome to use E5SubBot!"
 const help = `Command:
 /my Check your account info
 /bind Bind new account
+/cancel Cancel binding (sessions expire after 15 minutes)
 /unbind Unbind account
 /export Export account info (JSON)
 /help Help
@@ -61,7 +66,7 @@ func (b *Bot) onView(callback *tb.Callback) {
 		return
 	}
 	b.send(callback.Sender, fmt.Sprintf("Detail\nAlias: %s\nms_id: %s\nclient_id: %s\nclient_secret: %s\nLast updated: %s",
-		client.Alias, client.MicrosoftID, client.ClientID, client.ClientSecret,
+		client.Alias, client.MicrosoftID, client.ClientID, "[hidden; use /export]",
 		time.Unix(client.UpdatedAtUnix, 0).Format("2006-01-02 15:04:05")))
 }
 
@@ -156,13 +161,41 @@ func (b *Bot) onTask(message *tb.Message) {
 		b.send(message.Chat, "WARN: Only admins can run this task")
 		return
 	}
+	if b.runner.Status().Running {
+		b.send(message.Chat, "Renewal task is already running.")
+		return
+	}
 	b.send(message.Chat, "Starting renewal task...")
-	go b.RunTask(b.ctx)
+	go func() {
+		if err := b.RunTask(b.ctx); errors.Is(err, renewal.ErrAlreadyRunning) {
+			b.send(message.Chat, "Renewal task is already running.")
+		}
+	}()
+}
+
+func (b *Bot) onStatus(message *tb.Message) {
+	if !b.isAdmin(message.Chat.ID) {
+		b.send(message.Chat, "WARN: Only admins can read task status")
+		return
+	}
+	status := b.runner.Status()
+	format := func(value time.Time) string {
+		if value.IsZero() {
+			return "never"
+		}
+		return value.UTC().Format(time.RFC3339)
+	}
+	b.send(message.Chat, fmt.Sprintf("%s\nRunning: %t\nStarted: %s\nFinished: %s\nSuccess: %d\nFailed: %d\nTask error: %s",
+		buildinfo.String(), status.Running, format(status.Started), format(status.Finished), status.Success, status.Failed, status.Error))
 }
 
 func (b *Bot) onLog(message *tb.Message) {
 	if !b.isAdmin(message.Chat.ID) {
 		b.send(message.Chat, "WARN: Only admins can read logs")
+		return
+	}
+	if b.settings.Current().LogStdoutOnly {
+		b.send(message.Chat, "File logging is disabled. Read logs through systemd or Docker.")
 		return
 	}
 	const path = "./log/latest.log"

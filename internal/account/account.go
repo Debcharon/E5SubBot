@@ -44,7 +44,8 @@ func Open(cfg config.Config) (*Repository, error) {
 			User: cfg.MySQL.User, Passwd: cfg.MySQL.Password, Net: "tcp",
 			Addr:   net.JoinHostPort(cfg.MySQL.Host, strconv.Itoa(cfg.MySQL.Port)),
 			DBName: cfg.MySQL.Database, ParseTime: true, Loc: time.Local,
-			Params: map[string]string{"charset": "utf8mb4"},
+			Params:  map[string]string{"charset": "utf8mb4"},
+			Timeout: 10 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 20 * time.Second,
 		}).FormatDSN()
 	default:
 		return nil, fmt.Errorf("unsupported database %q", cfg.Database)
@@ -55,6 +56,10 @@ func Open(cfg config.Config) (*Repository, error) {
 	}
 	if cfg.Database == "sqlite" {
 		db.SetMaxOpenConns(1)
+	} else {
+		db.SetMaxOpenConns(10)
+		db.SetMaxIdleConns(2)
+		db.SetConnMaxLifetime(3 * time.Minute)
 	}
 	if err := db.Ping(); err != nil {
 		_ = db.Close()
@@ -99,10 +104,8 @@ func (r *Repository) Create(ctx context.Context, client *Client) error {
 }
 
 func (r *Repository) Update(ctx context.Context, client *Client) error {
-	client.UpdatedAtUnix = time.Now().Unix()
-	query := "UPDATE " + r.table + " SET tg_id = ?, refresh_token = ?, ms_id = ?, uptime = ?, alias = ?, client_id = ?, client_secret = ?, `other` = ? WHERE id = ?"
-	_, err := r.db.ExecContext(ctx, query, client.TelegramID, client.RefreshToken, client.MicrosoftID, client.UpdatedAtUnix,
-		client.Alias, client.ClientID, client.ClientSecret, client.Other, client.ID)
+	query := "UPDATE " + r.table + " SET refresh_token = ?, uptime = ? WHERE id = ? AND tg_id = ?"
+	_, err := r.db.ExecContext(ctx, query, client.RefreshToken, client.UpdatedAtUnix, client.ID, client.TelegramID)
 	return err
 }
 
@@ -113,11 +116,6 @@ func (r *Repository) DeleteForUser(ctx context.Context, id int, userID int64) (b
 	}
 	rows, err := result.RowsAffected()
 	return rows > 0, err
-}
-
-func (r *Repository) DeleteByID(ctx context.Context, id int) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM "+r.table+" WHERE id = ?", id)
-	return err
 }
 
 func (r *Repository) GetForUser(ctx context.Context, id int, userID int64) (Client, error) {
