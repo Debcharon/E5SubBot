@@ -7,30 +7,17 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w
+      - -s -w -X github.com/Debcharon/E5SubBot/internal/buildinfo.Version=v{{.Version}} -X github.com/Debcharon/E5SubBot/internal/buildinfo.Commit={{.FullCommit}} -X github.com/Debcharon/E5SubBot/internal/buildinfo.Date={{.Date}}
     goos:
       - linux
       - windows
       - darwin
     goarch:
-      - 386
       - amd64
-      - arm
       - arm64
-    goarm:
-      - 6
-      - 7
     ignore:
       - goos: windows
-        goarch: 386
-      - goos: windows
-        goarch: arm
-      - goos: windows
         goarch: arm64
-      - goos: darwin
-        goarch: arm
-      - goos: darwin
-        goarch: 386
 
 archives:
   - formats:

@@ -5,7 +5,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/E5SubBot .
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/Debcharon/E5SubBot/internal/buildinfo.Version=${VERSION} -X github.com/Debcharon/E5SubBot/internal/buildinfo.Commit=${COMMIT} -X github.com/Debcharon/E5SubBot/internal/buildinfo.Date=${BUILD_DATE}" -o /out/E5SubBot .
 
 FROM alpine:3.24
 
