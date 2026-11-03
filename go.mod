@@ -11,7 +11,7 @@ require (
 	golang.org/x/net v0.61.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/tucnak/telebot.v2 v2.5.0
-	modernc.org/sqlite v1.61.0
+	modernc.org/sqlite v1.61.1
 )
 
 require (
